@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>StarChips (Trustee) Deal Planner</title>
+<style>[hidden]{display:none!important}body{margin:0}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: single column. Sticky result bar under a scrolling masthead; ledger of
+   deal lines below it; entry form last. Numbers in mono, aligned. */
+:root{
+  --bg:#f3f4f5; --surface:#ffffff; --surface-2:#eceef0;
+  --ink:#15191c; --muted:#5c6670; --line:#dde2e5;
+  --accent:#a8572a; --accent-soft:#f0e2d8;
+  --pos:#1d6b4a; --neg:#9c2f2f; --warn:#8a6412; --warn-soft:#f7eed6;
+  --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121618; --surface:#1a1f22; --surface-2:#232a2e;
+  --ink:#e9edef; --muted:#98a3aa; --line:#2b3236;
+  --accent:#d98a54; --accent-soft:#33261d;
+  --pos:#62c294; --neg:#e58585; --warn:#d8ab4e; --warn-soft:#2e2718;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#121618; --surface:#1a1f22; --surface-2:#232a2e;
+  --ink:#e9edef; --muted:#98a3aa; --line:#2b3236;
+  --accent:#d98a54; --accent-soft:#33261d;
+  --pos:#62c294; --neg:#e58585; --warn:#d8ab4e; --warn-soft:#2e2718;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.5;
+  font-size:15px;-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);
+  z-index:10;background:var(--bg)}
+.wrap{max-width:720px;margin:0 auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:20px 56px}
+h1{font-size:1.25rem;font-weight:700;margin:0;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--muted);font-size:.85rem;margin:4px 0 18px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+label{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--muted);font-weight:600;margin-bottom:5px}
+select,input{font:inherit;color:var(--ink);background:var(--surface);
+  border:1px solid var(--line);border-radius:5px;padding:9px 10px;width:100%;min-width:0}
+input[type=number]{font-family:var(--mono);font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+/* role bar */
+.rolebar{display:grid;gap:10px;grid-template-columns:1fr;margin-bottom:14px}
+@media(min-width:560px){.rolebar{grid-template-columns:1fr auto;align-items:end}}
+.brief{font-size:.8rem;color:var(--muted);border-left:3px solid var(--accent);
+  padding:2px 0 2px 10px;margin:0 0 16px}
+.brief b{color:var(--ink);font-weight:600}
+
+/* sticky results */
+.results{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;
+  padding:14px;margin-bottom:14px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:439px){.tiles{grid-template-columns:1fr 1fr}
+  .tiles .tile:first-child{grid-column:1/-1}}
+.tile .k{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+  font-weight:600}
+.tile .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600;
+  font-size:1.5rem;letter-spacing:-.02em;line-height:1.2;margin-top:2px}
+.tile:first-child .v{font-size:1.9rem}
+.v.pos{color:var(--pos)} .v.neg{color:var(--neg)}
+.tile .n{font-size:.72rem;color:var(--muted);margin-top:1px}
+
+/* notes */
+.notes{display:grid;gap:6px;margin-top:12px}
+.note{font-size:.8rem;padding:7px 10px;border-radius:5px;background:var(--warn-soft);
+  color:var(--warn);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent)}
+.note.bad{background:color-mix(in srgb,var(--neg) 12%,transparent);color:var(--neg);
+  border-color:color-mix(in srgb,var(--neg) 35%,transparent)}
+
+h2{font-size:.74rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);
+  font-weight:600;margin:22px 0 8px;display:flex;justify-content:space-between;align-items:baseline}
+.ghost{background:none;border:none;color:var(--accent);font:inherit;font-size:.74rem;
+  font-weight:600;cursor:pointer;padding:0;text-transform:none;letter-spacing:0}
+
+/* ledger */
+.ledger{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.row{display:grid;grid-template-columns:auto 1fr auto auto;gap:10px;align-items:center;
+  padding:9px 12px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:none}
+.row.off{opacity:.42}
+.row .desc{font-size:.85rem;min-width:0}
+.row .desc .cp{color:var(--muted)}
+.row .amt{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:.85rem;
+  white-space:nowrap}
+.amt.in{color:var(--pos)} .amt.out{color:var(--neg)}
+.row input[type=checkbox]{width:17px;height:17px;accent-color:var(--accent);padding:0}
+.del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;
+  line-height:1;padding:2px 4px}
+.del:hover{color:var(--neg)}
+.empty{padding:22px 14px;text-align:center;color:var(--muted);font-size:.85rem}
+
+/* entry */
+.entry{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;
+  display:grid;gap:10px;grid-template-columns:1fr 1fr}
+@media(min-width:560px){.entry{grid-template-columns:.9fr 1.3fr .9fr .9fr auto;align-items:end}}
+.entry .full{grid-column:1/-1}
+button.add{font:inherit;font-weight:600;background:var(--accent);color:#fff;border:none;
+  border-radius:5px;padding:10px 16px;cursor:pointer;white-space:nowrap}
+button.add:hover{filter:brightness(1.08)}
+.members{display:flex;flex-wrap:wrap;gap:6px 18px}
+.members label{display:flex;gap:7px;align-items:center;margin:0;text-transform:none;
+  letter-spacing:0;font-size:.85rem;font-weight:400;color:var(--ink);cursor:pointer}
+.members input{width:17px;height:17px;accent-color:var(--accent);padding:0}
+
+/* breakdown */
+details{margin-top:18px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+summary{cursor:pointer;padding:11px 14px;font-size:.8rem;font-weight:600;color:var(--muted)}
+.dbody{padding:0 14px 14px}
+.bd{display:flex;justify-content:space-between;gap:12px;padding:5px 0;font-size:.85rem;
+  border-bottom:1px dashed var(--line)}
+.bd:last-child{border-bottom:none;font-weight:600;padding-top:8px}
+.bd span:last-child{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.hint{font-size:.78rem;color:var(--muted);margin:8px 0 0}
+.jb{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+footer{margin-top:26px;font-size:.75rem;color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <h1 id="heading">StarChips Deal Planner</h1>
+  <p class="sub">Enter deals as you consider them. Nothing is sent anywhere, and nothing here counts until it is on a slip that both parties have agreed.</p>
+
+  <div class="rolebar" id="rolebar">
+    <div>
+      <label for="role">Your role</label>
+      <select id="role"></select>
+    </div>
+  </div>
+  <p class="brief" id="brief"></p>
+
+  <div class="results">
+    <div class="tiles">
+      <div class="tile"><div class="k" id="k0">Profit</div><div class="v num" id="v0">£0</div><div class="n" id="n0"></div></div>
+      <div class="tile"><div class="k" id="k1">Chips held</div><div class="v num" id="v1">0</div><div class="n" id="n1"></div></div>
+      <div class="tile"><div class="k" id="k2">Break-even buy price</div><div class="v num" id="v2">—</div><div class="n" id="n2"></div></div>
+    </div>
+    <div class="notes" id="notes"></div>
+  </div>
+
+  <h2>Deals <button class="ghost" id="clear" type="button">Clear all</button></h2>
+  <div class="ledger" id="ledger"></div>
+
+  <h2>Add a deal</h2>
+  <form class="entry" id="form">
+    <div><label for="dir">Direction</label><select id="dir"></select></div>
+    <div><label for="cp">Counterparty</label><select id="cp"></select></div>
+    <div><label for="qty">Chips</label><input type="number" id="qty" min="0" step="1000" placeholder="10000"></div>
+    <div><label for="price">Price each</label><input type="number" id="price" min="0" step="0.5" placeholder="12"></div>
+    <button class="add" type="submit">Add</button>
+    <div class="full note bad" id="err" role="alert" hidden></div>
+    <fieldset class="full" id="conswrap" hidden style="border:none;margin:0;padding:0;min-width:0">
+      <legend style="padding:0"><label style="margin-bottom:7px">Consortium members (tick every member the bid names)</label></legend>
+      <div class="members" id="members"></div>
+    </fieldset>
+  </form>
+
+  <details id="detwrap">
+    <summary>How this adds up</summary>
+    <div class="dbody"><div id="breakdown"></div></div>
+  </details>
+
+  <details id="jbwrap">
+    <summary>Joint bid with another party</summary>
+    <div class="dbody">
+      <div class="jb">
+        <div><label for="pr">Partner value per chip</label><input type="number" id="pr" min="0" step="1" placeholder="0"></div>
+        <div><label for="pf">Partner fixed cost</label><input type="number" id="pf" min="0" step="1000" placeholder="0"></div>
+      </div>
+      <p class="hint">Fill these in only if a partner has told you their figures and has agreed to bid jointly. Values add together only when both of you can use the same physical chip. If your partner needs the chip in a working product and you do not, you cannot both count it.</p>
+    </div>
+  </details>
+
+  <footer>Figures are your own role's. Other parties see different numbers.</footer>
+</div>
+
+<script>
+const PARTIES=["StarChips","ElectroWaste","Cubo","SpecialToys","FirePower","GeekGifts"];
+const SECONDARY="Secondary market";
+// Trustee only: a sale to a named group of buyers. The deal line keeps the
+// member list, and FirePower among the members counts as FirePower named.
+const CONSORTIUM="Consortium";
+// A chip sent here leaves Cubo's market for good; anything else stays in play.
+const REMOVING=[];
+
+// One line per role so the build script can keep exactly one of them.
+// ROLES-START
+const ROLES={};
+ROLES["StarChips"]={seller:true,stock:100000,disposal:2,reputation:200000,brief:"You hold <b>100,000</b> chips. Every chip left unsold costs <b>£2</b> to dispose of. Naming FirePower in a sale costs <b>£200,000</b>."};
+// ROLES-END
+
+// null = the master page with a role picker. The build script sets this to one
+// role name, and strips every other role's figures out of the file.
+const FIXED_ROLE="StarChips";
+
+const KEY="starchips-planner-"+(FIXED_ROLE||"all");
+let state={role:FIXED_ROLE||"ElectroWaste",deals:[],pr:0,pf:0};
+let seq=1;
+
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+function load(){try{const r=localStorage.getItem(KEY);if(r){const s=JSON.parse(r);
+  if(s&&ROLES[s.role]){state=Object.assign(state,s);
+    state.deals=(s.deals||[]).map(d=>Object.assign({},d,{id:seq++}))}}}catch(e){}}
+
+const gbp=n=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"GBP",
+  maximumFractionDigits:0}).format(Math.round(n));
+const per=n=>"£"+n.toFixed(2);
+const qn=n=>new Intl.NumberFormat("en-GB").format(n);
+
+function counterparties(){
+  const r=state.role;
+  if(ROLES[r].seller)return PARTIES.filter(p=>p!=="StarChips").concat([CONSORTIUM]);
+  const l=PARTIES.filter(p=>p!==r);
+  if(ROLES[r].resale)l.push(SECONDARY);
+  return l;
+}
+
+function compute(){
+  const r=ROLES[state.role],on=state.deals.filter(d=>d.on);
+  let bought=0,sold=0,cashIn=0,cashOut=0,removedSold=0,secondary=0,repFlag=false;
+  for(const d of on){
+    const amt=d.qty*d.price;
+    if(d.dir==="buy"){bought+=d.qty;cashOut+=amt;}
+    else{sold+=d.qty;cashIn+=amt;
+      if(REMOVING.indexOf(d.party)>=0)removedSold+=d.qty;
+      if(d.party===SECONDARY)secondary+=d.qty;
+      if(d.party==="FirePower"||(d.members||[]).indexOf("FirePower")>=0)repFlag=true;}
+  }
+  const cash=cashIn-cashOut,notes=[];
+
+  if(r.seller){
+    const unsold=Math.max(r.stock-sold,0),disposal=unsold*r.disposal;
+    const rep=repFlag?r.reputation:0;
+    if(sold>r.stock)notes.push({bad:true,t:"You have sold "+qn(sold-r.stock)+" chips more than the "+qn(r.stock)+" you hold."});
+    if(repFlag)notes.push({t:"FirePower named in a sale: "+gbp(r.reputation)+" reputational cost charged once."});
+    if(unsold>0&&sold>0)notes.push({t:qn(unsold)+" chips unsold — disposal will cost "+gbp(disposal)+"."});
+    return{total:cashIn-disposal-rep,held:unsold,be:null,notes,
+      lines:[["Receipts from sales",cashIn],["Disposal of "+qn(unsold)+" unsold chips",-disposal],
+        ["Reputational cost",-rep],["Returned to creditors",cashIn-disposal-rep]],
+      heldLabel:"Chips unsold",heldNote:unsold?gbp(disposal)+" to dispose of":"All stock sold",
+      totalLabel:"Returned to creditors"};
+  }
+
+  const rev=r.rev+(state.pr||0),fc=r.fc+(state.pf||0);
+  const held=bought-sold,usable=Math.min(Math.max(held,0),r.max);
+  // A partner's value applies to chips the consortium keeps, never to chips
+  // sold on: the routing credit is Cubo's own rule and uses Cubo's own figure.
+  const chipRev=rev*usable,credit=r.routing?r.rev*removedSold:0;
+  const worth=held>=r.min&&chipRev-fc>0;
+  const operating=worth?chipRev-fc:0;
+  const total=cash+operating+credit;
+
+  if(sold>bought)notes.push({bad:true,t:"You have sold "+qn(sold-bought)+" chips more than you have bought."});
+  if(held>0&&held<r.min)notes.push({t:"Below your minimum of "+qn(r.min)+" chips — these "+qn(held)+" earn you nothing."});
+  if(held>r.max)notes.push({t:qn(held-r.max)+" chips above your maximum of "+qn(r.max)+" earn nothing. You could sell them on."});
+  if(held>=Math.max(r.min,1)&&!worth&&chipRev>0)notes.push({t:"Not worth switching on at this quantity: the "+gbp(fc)+" fixed cost exceeds "+gbp(chipRev)+" of revenue."});
+  if(r.resale&&secondary>r.resaleMax)notes.push({bad:true,t:"Your secondary channel takes at most "+qn(r.resaleMax)+" chips."});
+  if(r.holdMax&&held>r.holdMax)notes.push({bad:true,t:"You cannot hold more than "+qn(r.holdMax)+" chips."});
+  if(r.routing&&removedSold>0)notes.push({t:qn(removedSold)+" chips sold on still count as off the market: "+gbp(credit)+" credited."});
+
+  const be=bought>0?(operating+credit+cashIn)/bought:null;
+  const lines=[];
+  if(worth)lines.push(["Revenue on "+qn(usable)+" chips at "+per(rev),chipRev]);
+  else if(held>0)lines.push(["Revenue on chips held (line not switched on)",0]);
+  if(credit)lines.push(["Credit on chips sold on",credit]);
+  if(cashIn)lines.push(["Cash received from sales",cashIn]);
+  if(cashOut)lines.push(["Cash paid for chips",-cashOut]);
+  if(worth)lines.push(["Fixed cost",-fc]);
+  lines.push(["Profit",total]);
+
+  return{total,held,be,notes,lines,heldLabel:"Chips held",
+    heldNote:held>0?(worth?qn(usable)+" earning "+per(rev):"earning nothing"):"",
+    totalLabel:"Profit"};
+}
+
+// Entries that could not happen at the table are refused outright. Quantities are
+// judged on totals, not on the order lines were typed, so a sale may be planned
+// before the purchase that funds it as long as the purchase is also on the ledger.
+function hardBreaches(deals){
+  const r=ROLES[state.role],on=deals.filter(d=>d.on),out=[];
+  let bought=0,sold=0,secondary=0;
+  for(const d of on){
+    if(d.dir==="buy")bought+=d.qty;
+    else{sold+=d.qty;if(d.party===SECONDARY)secondary+=d.qty;}
+  }
+  if(r.seller){
+    if(sold>r.stock)out.push("You hold "+qn(r.stock)+" chips. That would take you "+qn(sold-r.stock)+" over.");
+    return out;
+  }
+  if(sold>bought)out.push("That would sell "+qn(sold-bought)+" chips more than you have bought. Add the purchase first.");
+  if(r.resale&&secondary>r.resaleMax)out.push("Your secondary channel takes at most "+qn(r.resaleMax)+" chips.");
+  if(r.holdMax&&bought-sold>r.holdMax)out.push("You cannot hold more than "+qn(r.holdMax)+" chips.");
+  return out;
+}
+
+function showErr(msgs){
+  const e=document.getElementById("err");
+  e.hidden=!msgs.length;
+  e.textContent=msgs.join(" ");
+}
+
+function render(){
+  const r=ROLES[state.role],res=compute();
+  document.getElementById("brief").innerHTML=r.brief;
+
+  document.getElementById("k0").textContent=res.totalLabel;
+  const v0=document.getElementById("v0");
+  v0.textContent=gbp(res.total);
+  v0.className="v num "+(res.total>0?"pos":res.total<0?"neg":"");
+  document.getElementById("n0").textContent="";
+
+  document.getElementById("k1").textContent=res.heldLabel;
+  document.getElementById("v1").textContent=qn(res.held);
+  document.getElementById("n1").textContent=res.heldNote;
+
+  document.getElementById("k2").textContent=r.seller?"Receipts so far":"Break-even buy price";
+  document.getElementById("v2").textContent=r.seller?gbp(res.lines[0][1]):(res.be===null?"—":per(Math.max(res.be,0)));
+  document.getElementById("n2").textContent=r.seller?"before disposal and reputation":
+    (res.be===null?"add a purchase":"average across chips bought");
+
+  const nb=document.getElementById("notes");
+  nb.innerHTML="";
+  for(const n of res.notes){
+    const d=document.createElement("div");
+    d.className="note"+(n.bad?" bad":"");d.textContent=n.t;nb.appendChild(d);
+  }
+
+  const led=document.getElementById("ledger");
+  led.innerHTML="";
+  if(!state.deals.length){
+    led.innerHTML='<div class="empty">No deals yet. Add one below — switch any line off to see what it is worth to you.</div>';
+  }else{
+    for(const d of state.deals){
+      const row=document.createElement("div");
+      row.className="row"+(d.on?"":" off");
+      const cb=document.createElement("input");
+      cb.type="checkbox";cb.checked=d.on;cb.title="Include this deal";
+      cb.addEventListener("change",()=>{
+        const prev=d.on;d.on=cb.checked;
+        if(cb.checked){
+          const bad=hardBreaches(state.deals);
+          if(bad.length){d.on=prev;cb.checked=prev;showErr(bad);return}
+        }
+        showErr([]);save();render();
+      });
+      const desc=document.createElement("div");
+      desc.className="desc";
+      desc.innerHTML=(d.dir==="buy"?"Buy ":"Sell ")+'<span class="num">'+qn(d.qty)+
+        "</span> at <span class='num'>"+per(d.price)+'</span> <span class="cp">'+
+        (d.dir==="buy"?"from ":"to ")+(d.members?"consortium of "+d.members.join(", "):d.party)+"</span>";
+      const amt=document.createElement("div");
+      amt.className="amt "+(d.dir==="buy"?"out":"in");
+      amt.textContent=(d.dir==="buy"?"−":"+")+gbp(d.qty*d.price).replace("-","");
+      const del=document.createElement("button");
+      del.className="del";del.type="button";del.textContent="×";del.title="Delete";
+      del.addEventListener("click",()=>{state.deals=state.deals.filter(x=>x!==d);save();render()});
+      row.append(cb,desc,amt,del);led.appendChild(row);
+    }
+  }
+
+  const bd=document.getElementById("breakdown");
+  bd.innerHTML="";
+  for(const [k,v] of res.lines){
+    const el=document.createElement("div");el.className="bd";
+    el.innerHTML="<span>"+k+"</span><span>"+gbp(v)+"</span>";bd.appendChild(el);
+  }
+
+  document.getElementById("jbwrap").hidden=!!r.seller;
+  syncCons();
+}
+
+function syncCons(){
+  document.getElementById("conswrap").hidden=
+    !(ROLES[state.role].seller&&document.getElementById("cp").value===CONSORTIUM);
+}
+
+function fillSelects(){
+  const r=ROLES[state.role];
+  const dir=document.getElementById("dir");
+  dir.innerHTML="";
+  const opts=r.seller?[["sell","Sell"]]:[["buy","Buy"],["sell","Sell"]];
+  for(const [v,t] of opts){const o=document.createElement("option");o.value=v;o.textContent=t;dir.appendChild(o)}
+  const cp=document.getElementById("cp");
+  cp.innerHTML="";
+  for(const p of counterparties()){const o=document.createElement("option");o.value=p;o.textContent=p;cp.appendChild(o)}
+  const mem=document.getElementById("members");
+  mem.innerHTML="";
+  if(r.seller)for(const p of PARTIES.filter(p=>p!=="StarChips")){
+    const l=document.createElement("label"),c=document.createElement("input");
+    c.type="checkbox";c.value=p;l.append(c,p);mem.appendChild(l);
+  }
+}
+
+const roleSel=document.getElementById("role");
+const label=r=>r==="StarChips"?"StarChips (Trustee)":r;
+if(FIXED_ROLE){
+  document.getElementById("rolebar").hidden=true;
+  document.getElementById("heading").textContent=label(FIXED_ROLE)+" Deal Planner";
+  document.title=label(FIXED_ROLE)+" Deal Planner";
+}else{
+  for(const p of PARTIES){
+    const o=document.createElement("option");o.value=p;
+    o.textContent=label(p);roleSel.appendChild(o);
+  }
+}
+
+load();
+state.role=FIXED_ROLE||state.role;
+if(!FIXED_ROLE)roleSel.value=state.role;
+document.getElementById("pr").value=state.pr||"";
+document.getElementById("pf").value=state.pf||"";
+fillSelects();render();
+
+roleSel.addEventListener("change",()=>{
+  state.role=roleSel.value;state.deals=[];state.pr=0;state.pf=0;
+  document.getElementById("pr").value="";document.getElementById("pf").value="";
+  fillSelects();showErr([]);save();render();
+});
+
+document.getElementById("cp").addEventListener("change",e=>{
+  const r=ROLES[state.role];
+  if(r.resale&&e.target.value===SECONDARY){
+    document.getElementById("dir").value="sell";
+    document.getElementById("price").value=r.resale;
+  }
+  showErr([]);syncCons();
+});
+
+document.getElementById("form").addEventListener("submit",e=>{
+  e.preventDefault();
+  const qty=Math.round(Number(document.getElementById("qty").value));
+  const price=Number(document.getElementById("price").value);
+  if(!(qty>0)||!(price>=0))return;
+  const line={id:seq++,dir:document.getElementById("dir").value,
+    party:document.getElementById("cp").value,qty,price,on:true};
+  const boxes=[...document.querySelectorAll("#members input")];
+  if(line.party===CONSORTIUM){
+    line.members=boxes.filter(c=>c.checked).map(c=>c.value);
+    if(line.members.length<2){showErr(["Tick at least two consortium members."]);return}
+  }
+  const bad=hardBreaches(state.deals.concat([line]));
+  if(bad.length){showErr(bad);return}
+  showErr([]);
+  state.deals.push(line);
+  document.getElementById("qty").value="";document.getElementById("price").value="";
+  for(const c of boxes)c.checked=false;
+  save();render();document.getElementById("qty").focus();
+});
+
+document.getElementById("clear").addEventListener("click",()=>{
+  state.deals=[];showErr([]);save();render();
+});
+
+for(const [id,k] of [["pr","pr"],["pf","pf"]]){
+  document.getElementById(id).addEventListener("input",e=>{
+    state[k]=Number(e.target.value)||0;save();render();
+  });
+}
+</script>
+
+</body>
+</html>
